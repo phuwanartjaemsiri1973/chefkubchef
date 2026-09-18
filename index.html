@@ -15,10 +15,9 @@
             <div class="header-title">🍳 เชฟครับเชฟลืมปิดเตาแก๊ส</div>
             <div class="header-sub">มาม่าห่อไข่สไตล์เกาหลี (Buldak & OK)</div>
             <div class="header-sub">fanpage เชฟครับเชฟลืมปิดเตาแก๊ส</div>
-            <div class="header-sub">instagram chefkubchef</div>
-            <div class="header-sub">tiktok เชฟครับเชฟลืมปิดเตาแก๊ส</div>
-            <a href="https://m.me/YOUR_PAGE_NAME" target="_blank" style="display: inline-block; background-color: #1877f2; color: white; padding: 8px 16px; border-radius: 20px; text-decoration: none; font-size: 13px; font-weight: bold;">
-                    ติดต่อ Facebook Fanpage คลิกที่นี่
+            <div class="header-sub">instagram chefkubchef | tiktok เชฟครับเชฟลืมปิดเตาแก๊ส</div>
+            <a href="https://m.me/YOUR_PAGE_NAME" target="_blank" style="display: inline-block; background-color: #1877f2; color: white; padding: 6px 14px; border-radius: 20px; text-decoration: none; font-size: 12px; font-weight: bold; margin-top: 6px;">
+                💬 ติดต่อ Facebook Fanpage
             </a>
             <div id="customerStoreStatusBadge" class="store-status-badge">กำลังโหลด...</div>
             <button class="admin-top-btn" onclick="toggleView()" id="toggleViewBtn">
@@ -38,98 +37,140 @@
         </div>
     </div>
 
-    <!-- หน้าร้านสำหรับลูกค้า -->
+    <!-- 📱 หน้าร้านสำหรับลูกค้า -->
     <div class="container" id="customer-section">
         
-        <!-- Step 1: มาม่า -->
-        <div class="card">
-            <div class="section-title">
-                <span>🍜 1. เลือกมาม่า (ห่อไข่ทุกออเดอร์)</span>
-            </div>
-            
-            <div class="category-tabs">
-                <div class="cat-tab active" onclick="filterNoodleCategory('Buldak', this)">🔥 มาม่า Buldak</div>
-                <div class="cat-tab" onclick="filterNoodleCategory('OK', this)">🍜 มาม่า OK</div>
+        <!-- 🔴 หน้า 1: เลือกสั่งอาหาร (Ordering View) -->
+        <div id="orderingView">
+
+            <!-- แถบแจ้งเตือนเมื่อมีออเดอร์ค้างอยู่ -->
+            <div id="activeOrderBanner" style="display: none; background: #fff3cd; border: 1px solid #ffe8a1; padding: 12px 16px; border-radius: 12px; margin-bottom: 16px; align-items: center; justify-content: space-between; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                <div>
+                    <strong style="color: #856404; font-size: 14px;">🛵 คุณมีออเดอร์ที่กำลังดำเนินการอยู่</strong>
+                    <p style="font-size: 12px; color: #856404; margin: 2px 0 0 0;">คลิกเพื่อติดตามสถานะการปรุงอาหารจากเชฟ</p>
+                </div>
+                <button onclick="switchToWaitingView()" class="btn-primary btn-small" style="background: #ffc107; color: #212529; font-weight: bold; width: auto; padding: 8px 14px;">
+                    🔍 ดูสถานะออเดอร์
+                </button>
             </div>
 
-            <div id="noodleCardContainer"></div>
-        </div>
-
-        <!-- Step 2: เครื่อง/ไส้ -->
-        <div class="card">
-            <div class="section-title">
-                <span>🧀 2. เลือกเครื่อง (ไส้)</span>
-                <span class="info-badge">🎁 ฟรี 2 อย่างแรก (+10฿/อย่างถัดไป)</span>
+            <!-- Step 1: มาม่า -->
+            <div class="card">
+                <div class="section-title">
+                    <span>🍜 1. เลือกมาม่า (ห่อไข่ทุกออเดอร์)</span>
+                </div>
+                <div class="category-tabs">
+                    <div class="cat-tab active" onclick="filterNoodleCategory('Buldak', this)">🔥 มาม่า Buldak</div>
+                    <div class="cat-tab" onclick="filterNoodleCategory('OK', this)">🍜 มาม่า OK</div>
+                </div>
+                <div id="noodleCardContainer"></div>
             </div>
-            <div id="toppingGrid" class="topping-grid"></div>
-            <p id="toppingPriceNote" style="font-size:12px; color:var(--primary); margin-top:8px; font-weight:500;"></p>
-        </div>
 
-        <!-- Step 3: ความเผ็ด -->
-        <div class="card">
-            <div class="section-title">🌶️ 3. เลือกระดับความเผ็ด</div>
-            <div class="spicy-grid">
-                <div class="spicy-btn active" onclick="setSpiciness(this, 'เผ็ดธรรมดา')">เผ็ดธรรมดา</div>
-                <div class="spicy-btn" onclick="setSpiciness(this, 'เผ็ด x2')">เผ็ด x2</div>
-                <div class="spicy-btn" onclick="setSpiciness(this, 'เผ็ด x3')">เผ็ด x3</div>
-                <div class="spicy-btn" onclick="setSpiciness(this, 'เผ็ด x4')">เผ็ด x4</div>
-                <div class="spicy-btn" style="grid-column: span 2;" onclick="setSpiciness(this, 'เผ็ดนรก 🔥')">เผ็ดนรก 🔥</div>
+            <!-- Step 2: เครื่อง/ไส้ -->
+            <div class="card">
+                <div class="section-title">
+                    <span>🧀 2. เลือกเครื่อง (ไส้)</span>
+                    <span class="info-badge">🎁 ฟรี 2 อย่างแรก (+10฿/อย่างถัดไป)</span>
+                </div>
+                <div id="toppingGrid" class="topping-grid"></div>
+                <p id="toppingPriceNote" style="font-size:12px; color:var(--primary); margin-top:8px; font-weight:500;"></p>
             </div>
-        </div>
 
-        <!-- Step 4: ผัก -->
-        <div class="card">
-            <div class="section-title">🥬 4. การใส่ผัก</div>
-            <div id="vegContainer">
-                <div class="segmented-control">
-                    <div class="segmented-option active" id="vegYes" onclick="setVeg('ใส่')">ใส่ผัก</div>
-                    <div class="segmented-option" id="vegNo" onclick="setVeg('ไม่ใส่')">ไม่ใส่ผัก</div>
+            <!-- Step 3: ความเผ็ด -->
+            <div class="card">
+                <div class="section-title">🌶️ 3. เลือกระดับความเผ็ด</div>
+                <div class="spicy-grid">
+                    <div class="spicy-btn active" onclick="setSpiciness(this, 'เผ็ดธรรมดา')">เผ็ดธรรมดา</div>
+                    <div class="spicy-btn" onclick="setSpiciness(this, 'เผ็ด x2')">เผ็ด x2</div>
+                    <div class="spicy-btn" onclick="setSpiciness(this, 'เผ็ด x3')">เผ็ด x3</div>
+                    <div class="spicy-btn" onclick="setSpiciness(this, 'เผ็ด x4')">เผ็ด x4</div>
+                    <div class="spicy-btn" style="grid-column: span 2;" onclick="setSpiciness(this, 'เผ็ดนรก 🔥')">เผ็ดนรก 🔥</div>
                 </div>
             </div>
-            <p id="vegOutMessage" style="color:#ff4757; font-size:13px; display:none; margin-top:5px;">⚠️ วันนี้ผักหมดชั่วคราวครับ </p>
-        </div>
 
-        <!-- Step 5: ข้อมูลจัดส่งและแผนที่ -->
-        <div class="card">
-            <div class="section-title">👤 5. ข้อมูลผู้สั่งและปักหมุดที่อยู่ส่งอาหาร</div>
-            
-            <div class="form-group">
-                <label class="form-label">ชื่อ - นามสกุล *</label>
-                <input type="text" id="custName" placeholder="เช่น คุณสมชาย">
-            </div>
-
-            <div class="form-group">
-                <label class="form-label">เบอร์โทรศัพท์ *</label>
-                <input type="text" id="custPhone" placeholder="เช่น 0812345678">
-            </div>
-
-            <div class="form-group">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <label class="form-label">📍 ปักหมุดพิกัดจัดส่ง (หรือส่งพิกัดในอินบล็อคทางแฟนเพจ)</label>
-                    <button type="button" class="btn-gps" onclick="getCurrentLocation()">🎯 ตำแหน่งปัจจุบัน</button>
+            <!-- Step 4: ผัก -->
+            <div class="card">
+                <div class="section-title">🥬 4. การใส่ผัก</div>
+                <div id="vegContainer">
+                    <div class="segmented-control">
+                        <div class="segmented-option active" id="vegYes" onclick="setVeg('ใส่')">ใส่ผัก</div>
+                        <div class="segmented-option" id="vegNo" onclick="setVeg('ไม่ใส่')">ไม่ใส่ผัก</div>
+                    </div>
                 </div>
-                <div id="map"></div>
-                <p style="font-size:11px; color:var(--text-muted); margin-top:4px;">* คลิกบนแผนที่หรือลากหมุดเพื่อเลือกตำแหน่งที่ชัดเจน</p>
+                <p id="vegOutMessage" style="color:#ff4757; font-size:13px; display:none; margin-top:5px;">⚠️ วันนี้ผักหมดชั่วคราวครับ</p>
             </div>
 
-            <div class="form-group">
-                <label class="form-label">รายละเอียดที่อยู่เพิ่มเติม (บ้านเลขที่ / ชื่อตึก / ซอย)</label>
-                <textarea id="custAddress" placeholder="เช่น บ้านเลขที่ 12/34 ตึก A ชั้น 2 ซอยสุขุมวิท 10"></textarea>
+            <!-- Step 5: ข้อมูลจัดส่งและแผนที่ -->
+            <div class="card">
+                <div class="section-title">👤 5. ข้อมูลผู้สั่งและปักหมุดที่อยู่ส่งอาหาร</div>
+                
+                <div class="form-group">
+                    <label class="form-label">ชื่อ - นามสกุล *</label>
+                    <input type="text" id="custName" placeholder="เช่น คุณสมชาย">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">เบอร์โทรศัพท์ *</label>
+                    <input type="text" id="custPhone" placeholder="เช่น 0812345678">
+                </div>
+
+                 <div class="form-group">
+                    <label class="form-label">facebook *</label>
+                    <input type="text" id="custFacebook" placeholder="สำหรับติดต่อเมื่อพ่อค้าจัดส่งอาหารเรียบร้อยแล้ว">
+                </div>
+
+                <div class="form-group">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <label class="form-label">📍 ปักหมุดพิกัดจัดส่ง</label>
+                        <button type="button" class="btn-gps" onclick="getCurrentLocation()">🎯 ตำแหน่งปัจจุบัน</button>
+                    </div>
+                    <div id="map"></div>
+                    <p style="font-size:11px; color:var(--text-muted); margin-top:4px;">* คลิกบนแผนที่หรือลากหมุดเพื่อเลือกตำแหน่งที่ชัดเจน</p>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">รายละเอียดที่อยู่เพิ่มเติม (บ้านเลขที่ / ชื่อตึก / ซอย)</label>
+                    <textarea id="custAddress" placeholder="เช่น บ้านเลขที่ 12/34 ตึก A ชั้น 2 ซอยสุขุมวิท 10"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">หมายเหตุเพิ่มเติมถึงเชฟ</label>
+                    <textarea id="custComment" placeholder="เช่น ไม่ใส่ต้นหอม, สุกมากเป็นพิเศษ"></textarea>
+                </div>
             </div>
 
-            <div class="form-group">
-                <label class="form-label">หมายเหตุเพิ่มเติมถึงเชฟ</label>
-                <textarea id="custComment" placeholder="เช่น ไม่ใส่ต้นหอม, สุกมากเป็นพิเศษ"></textarea>
+            <button class="btn-primary" id="submitOrderBtn" onclick="openDeliveryModal()">
+                <span id="submitOrderBtnText">สรุปรายการสั่งซื้อ</span>
+                <span id="livePriceDisplay">0 บาท ➔</span>
+            </button>
+        </div>
+
+        <!-- 🟢 หน้า 2: หน้ารอออเดอร์แยกต่างหาก (Waiting View) -->
+        <div id="waitingView" style="display: none;">
+            <div class="card" style="text-align: center; padding: 30px 20px; border-top: 6px solid var(--primary);">
+                <div id="waitingStatusIcon" style="font-size: 56px; margin-bottom: 10px;">⏳</div>
+                <h2 id="waitingStatusTitle" style="font-size: 20px; color: var(--primary); margin-bottom: 6px;">กำลังรอยืนยันออเดอร์จากพ่อค้า</h2>
+                <p id="waitingStatusDesc" style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">ระบบได้ส่งรายการไปยังร้านค้าแล้ว กรุณารอสักครู่...</p>
+
+                <div class="receipt-box" id="waitingOrderReceipt" style="text-align: left; background: #fafbfc; border: 1.5px dashed var(--border-color); padding: 16px; border-radius: 12px; margin-bottom: 20px;">
+                    <!-- รายละเอียดออเดอร์จะแสดงที่นี่ -->
+                </div>
+
+                <div style="margin-bottom: 12px;">
+                    <button class="btn-primary" onclick="switchToOrderingView()" style="justify-content: center; background: #2f3542;">
+                        ➕ สั่งอาหารเพิ่ม / กลับหน้าเลือกเมนู
+                    </button>
+                </div>
+
+                <div id="waitingActionButtons">
+                    <button class="btn-primary btn-danger" onclick="cancelCustomerOrder()" style="justify-content: center;">❌ ยกเลิกออเดอร์นี้</button>
+                </div>
             </div>
         </div>
 
-        <button class="btn-primary" id="submitOrderBtn" onclick="openDeliveryModal()">
-            <span id="submitOrderBtnText">สรุปรายการสั่งซื้อ</span>
-            <span id="livePriceDisplay">0 บาท ➔</span>
-        </button>
     </div>
 
-    <!-- ระบบหลังบ้าน (ผู้ดูแล) -->
+    <!-- 🛠️ ระบบหลังบ้าน (ผู้ดูแล) -->
     <div class="container" id="admin-section" style="display: none;">
         <div class="card" id="login-box">
             <div class="section-title">🔒 เข้าสู่ระบบผู้ดูแลร้าน</div>
@@ -140,71 +181,82 @@
         </div>
         
         <div id="admin-dashboard" style="display:none;">
-            
-            <!-- ตั้งค่าสถานะเปิด-ปิดร้าน -->
-            <div class="card" style="border-left: 5px solid #ff4757;">
-                <div class="section-title">🏪 ระบบเปิด-ปิดร้าน & กำหนดข้อความเวลาเปิด</div>
-                <p style="font-size:13px; margin-bottom:12px;">สถานะปัจจุบัน: <strong id="adminStoreStatusText" style="font-size:15px; color:var(--primary);">เปิดร้าน</strong></p>
-                
-                <div class="form-group">
-                    <label class="form-label">ข้อความแจ้งเวลาเปิดร้าน (ระบุได้ตามใจพ่อค้า)</label>
-                    <input type="text" id="openTimeTextNote" placeholder="เช่น เปิดเวลา 17:00 น. หรือ เปิด 18:30 น. วันนี้" onchange="saveStoreTimes()">
-                </div>
-
-                <button id="toggleStoreBtn" onclick="toggleStoreStatus()" class="btn-primary" style="justify-content: center; transition:all 0.2s; margin-top:8px;">
-                    🔴 กดปิดร้าน (สรุปยอดขายส่ง Telegram)
-                </button>
+            <div class="category-tabs" style="margin-bottom: 16px;">
+                <div class="cat-tab active" id="adminTabOrdersBtn" onclick="switchAdminTab('orders')">📦 ออเดอร์สด (Real-time)</div>
+                <div class="cat-tab" id="adminTabStockBtn" onclick="switchAdminTab('stock')">⚙️ ตั้งค่าร้าน & สต็อก</div>
             </div>
 
-            <!-- ตั้งค่า Telegram แจ้งเตือนเข้ากลุ่ม -->
-            <div class="card" style="border-left: 4px solid #0088cc;">
-                <div class="section-title">📲 ตั้งค่าการแจ้งเตือน Telegram (ส่งเข้ากลุ่ม)</div>
-                <div class="form-group">
-                    <label class="form-label">Telegram Bot Token</label>
-                    <input type="text" id="telegramToken" placeholder="วาง Bot Token เช่น 123456789:ABCdefGhIJKlmno...">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Telegram Chat ID / Group ID (สำหรับกลุ่มต้องมีเครื่องหมาย - นำหน้า)</label>
-                    <input type="text" id="telegramChatId" placeholder="วาง Group ID เช่น -100123456789 หรือ -987654321">
-                </div>
-                <p style="font-size:11px; color:var(--text-muted); margin-top:-6px; margin-bottom:12px;">
-                    💡 <b>วิธีดึงเข้ากลุ่ม:</b> ดึง Bot เข้ากลุ่ม Telegram -> ตั้งให้เป็น Admin ของกลุ่ม -> นำ Group ID (ที่ขึ้นต้นด้วย -) มาวางในช่องนี้
-                </p>
-                <div style="display: flex; gap: 8px;">
-                    <button onclick="saveTelegramSettings()" class="btn-primary btn-small btn-success" style="flex:1;">💾 บันทึกตั้งค่า</button>
-                    <button onclick="testTelegram()" class="btn-primary btn-small btn-info" style="flex:1;">🧪 ทดสอบส่งเข้ากลุ่ม</button>
+            <!-- แท็บ 1: หน้ายืนยันออเดอร์สดหลังบ้าน -->
+            <div id="adminTabOrders">
+                <div class="card" style="border-left: 5px solid #2ed573;">
+                    <div class="section-title">📦 รายการออเดอร์ที่เข้ามาทั้งหมด</div>
+                    <div id="adminOrdersContainer">
+                        <p style="font-size:13px; color:var(--text-muted); text-align:center; padding:10px;">กำลังโหลดออเดอร์...</p>
+                    </div>
                 </div>
             </div>
 
-            <div class="card">
-                <div class="section-title">🍜 จัดการเมนูมาม่า, ราคา & สต็อก</div>
-                <div style="display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap;">
-                    <select id="newNoodleCategory" style="flex:1; min-width: 100px;">
-                        <option value="Buldak">🔥 Buldak</option>
-                        <option value="OK">🍜 OK</option>
-                    </select>
-                    <input type="text" id="newNoodleName" placeholder="ชื่อรสชาติ" style="flex:2; min-width: 140px;">
-                    <input type="number" id="newNoodlePrice" placeholder="ราคา" style="flex:1; min-width: 70px;">
-                    <input type="number" id="newNoodleStock" placeholder="สต็อก" style="flex:1; min-width: 70px;">
-                    <button onclick="addNoodle()" class="btn-primary btn-small">เพิ่ม</button>
-                </div>
-                <table class="admin-table" id="noodleTable"></table>
-            </div>
+            <!-- แท็บ 2: หน้าตั้งค่าร้าน สต็อก และ Telegram -->
+            <div id="adminTabStock" style="display: none;">
+                <div class="card" style="border-left: 5px solid #ff4757;">
+                    <div class="section-title">🏪 ระบบเปิด-ปิดร้าน & กำหนดข้อความเวลาเปิด</div>
+                    <p style="font-size:13px; margin-bottom:12px;">สถานะปัจจุบัน: <strong id="adminStoreStatusText" style="font-size:15px; color:var(--primary);">เปิดร้าน</strong></p>
+                    
+                    <div class="form-group">
+                        <label class="form-label">ข้อความแจ้งเวลาเปิดร้าน</label>
+                        <input type="text" id="openTimeTextNote" placeholder="เช่น เปิดเวลา 17:00 น." onchange="saveOpenTimeNote()">
+                    </div>
 
-            <!-- จัดการวัตถุดิบ/เครื่อง -->
-            <div class="card">
-                <div class="section-title">🧀 จัดการรายการเครื่อง (วัตถุดิบ)</div>
-                <div style="display: flex; gap: 6px; margin-bottom: 10px;">
-                    <input type="text" id="newToppingName" placeholder="ชื่อวัตถุดิบ/เครื่อง" style="flex:1;">
-                    <button onclick="addTopping()" class="btn-primary btn-small">เพิ่มวัตถุดิบ</button>
+                    <button id="toggleStoreBtn" onclick="toggleStore()" class="btn-primary" style="justify-content: center; transition:all 0.2s; margin-top:8px;">
+                        🔴 กดปิดร้าน (สรุปยอดขายส่ง Telegram)
+                    </button>
                 </div>
-                <table class="admin-table" id="toppingTable"></table>
-            </div>
 
-            <div class="card">
-                <div class="section-title">🥬 สถานะผักสด</div>
-                <p style="font-size:13px; margin-bottom:10px;">สถานะปัจจุบัน: <strong id="currentVegStatus">เปิดปกติ</strong></p>
-                <button id="toggleVegBtn" onclick="toggleVeg()" class="btn-primary btn-small">สลับสถานะผักหมด</button>
+                <div class="card" style="border-left: 4px solid #0088cc;">
+                    <div class="section-title">📲 ตั้งค่าการแจ้งเตือน Telegram</div>
+                    <div class="form-group">
+                        <label class="form-label">Telegram Bot Token</label>
+                        <input type="text" id="telegramToken" placeholder="วาง Bot Token">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Telegram Chat ID / Group ID</label>
+                        <input type="text" id="telegramChatId" placeholder="วาง Group ID ขึ้นต้นด้วย -">
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button onclick="saveTelegramSettings()" class="btn-primary btn-small btn-success" style="flex:1;">💾 บันทึกตั้งค่า</button>
+                        <button onclick="testTelegram()" class="btn-primary btn-small btn-info" style="flex:1;">🧪 ทดสอบส่ง</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="section-title">🍜 จัดการเมนูมาม่า, ราคา & สต็อก</div>
+                    <div style="display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap;">
+                        <select id="newNoodleCategory" style="flex:1; min-width: 100px;">
+                            <option value="Buldak">🔥 Buldak</option>
+                            <option value="OK">🍜 OK</option>
+                        </select>
+                        <input type="text" id="newNoodleName" placeholder="ชื่อรสชาติ" style="flex:2; min-width: 140px;">
+                        <input type="number" id="newNoodlePrice" placeholder="ราคา" style="flex:1; min-width: 70px;">
+                        <input type="number" id="newNoodleStock" placeholder="สต็อก" style="flex:1; min-width: 70px;">
+                        <button onclick="addNoodle()" class="btn-primary btn-small">เพิ่ม</button>
+                    </div>
+                    <table class="admin-table" id="noodleTable"></table>
+                </div>
+
+                <div class="card">
+                    <div class="section-title">🧀 จัดการรายการเครื่อง (วัตถุดิบ)</div>
+                    <div style="display: flex; gap: 6px; margin-bottom: 10px;">
+                        <input type="text" id="newToppingName" placeholder="ชื่อวัตถุดิบ/เครื่อง" style="flex:1;">
+                        <button onclick="addTopping()" class="btn-primary btn-small">เพิ่มวัตถุดิบ</button>
+                    </div>
+                    <table class="admin-table" id="toppingTable"></table>
+                </div>
+
+                <div class="card">
+                    <div class="section-title">🥬 สถานะผักสด</div>
+                    <p style="font-size:13px; margin-bottom:10px;">สถานะปัจจุบัน: <strong id="currentVegStatus">เปิดปกติ</strong></p>
+                    <button id="toggleVegBtn" onclick="toggleVeg()" class="btn-primary btn-small">สลับสถานะผักหมด</button>
+                </div>
             </div>
 
             <button onclick="logoutAdmin()" class="btn-primary btn-danger" style="justify-content: center; margin-top: 10px;">ออกจากระบบหลังบ้าน</button>
@@ -236,7 +288,6 @@
                 
                 <div class="receipt-box" id="orderSummary"></div>
 
-                <!-- เลือกช่องทางการชำระเงิน -->
                 <div class="payment-selection" style="margin-bottom: 15px; text-align: left;">
                     <label style="font-weight: bold; font-size: 14px; display: block; margin-bottom: 8px;">💳 เลือกช่องทางการชำระเงิน:</label>
                     <div style="display: flex; gap: 10px;">
@@ -251,20 +302,18 @@
                     </div>
                 </div>
 
-                <!-- 1. ส่วนแสดง QR Code พร้อมเพย์ + ช่องแนบสลิป -->
                 <div id="promptpay-section" class="qr-container">
                     <div style="font-size: 13px; color: var(--text-muted); font-weight: 500;">สแกน QR Code เพื่อชำระเงิน</div>
-                    <img src="qrbaramee.jpg" alt="QR Code ชำระเงิน" class="qr-image" style="width: 180px; height: 180px; margin: 10px auto; display: block;" onerror="this.src='https://via.placeholder.com/200x200.png?text=QR+PromptPay'">
-                    <div style="font-size: 12px; color: var(--primary); margin-top: 6px; font-weight: 500;">พร้อมเพย์: 081-XXX-XXXX</div>
+                    <img src="qrbaramee.jpg" alt="QR Code ชำระเงิน" class="qr-image" style="width: 200px; height: auto; margin: 10px auto; display: block;" onerror="this.src='https://via.placeholder.com/200x200.png?text=QR+PromptPay'">
+                    <div style="font-size: 14px; color: var(--text-main); margin-top: 8px; font-weight: 600;">ชื่อบัญชี: นาย บารมี ใจชอบ</div>
+                    <div style="font-size: 12px; color: var(--primary); margin-top: 2px; font-weight: 500;">มาม่าเกาหลีห่อไข่ by เชฟ...</div>
                     
-                    <!-- 📸 เพิ่มช่องแนบรูปสลิปโอนเงิน -->
                     <div style="margin-top: 14px; text-align: left; background: #fafbfc; border: 1px dashed #ced6e0; padding: 10px; border-radius: 8px;">
                         <label class="form-label" style="margin-bottom: 4px; color: var(--text-main); font-weight: 600;">⚠️ แนบรูปสลิปโอนเงิน</label>
                         <input type="file" id="slipFileInput" accept="image/*" style="font-size: 12px; padding: 6px;">
                     </div>
                 </div>
 
-                <!-- 2. ส่วนแสดงคำแนะนำสำหรับ โครงการไทยช่วยไทย -->
                 <div id="thaichueaythai-section" style="display: none; background-color: #fff8e6; border: 1px solid #ffe0b2; padding: 15px; border-radius: 8px; margin-top: 10px; text-align: center;">
                     <div style="font-size: 14px; font-weight: bold; color: #e65100; margin-bottom: 6px;">
                         ⚠️ คำแนะนำสำหรับสิทธิ "ไทยช่วยไทย"
@@ -279,16 +328,9 @@
         </div>
     </div>
 
-<!-- 1. Leaflet JS -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
-
-<!-- 2. Firebase Libraries (ต้องเป็น -compat.js) -->
-<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js" defer></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js" defer></script>
-
-<!-- 3. สคริปต์หลักของร้าน -->
-<script src="script.js" defer></script>
-
-    
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js" defer></script>
+    <script src="script.js" defer></script>
 </body>
 </html>
