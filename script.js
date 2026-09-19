@@ -285,6 +285,7 @@ function showWaitingView(order) {
             <div style="margin-bottom:8px;">
                 <strong>🆔 รหัสออเดอร์:</strong> <span style="color:var(--primary); font-weight:bold;">${order.id}</span><br>
                 • <b>ผู้สั่ง:</b> ${cust.name || order.name || '-'} (${cust.phone || order.phone || '-'})<br>
+                • <b>Facebook:</b> ${cust.facebook || '-'}<br>
                 • <b>วิธีชำระเงิน:</b> ${order.paymentMethod || '-'}<br>
             </div>
             <hr style="border:none; border-top:1px dashed var(--border-color); margin:8px 0;">
@@ -677,15 +678,88 @@ function updateOrderStatusByAdmin(orderId, newStatus) {
     }
 }
 
-/* ฟังก์ชันเปิด/ปิดร้าน */
+/* ฟังก์ชันเปิด/ปิดร้าน และ สรุปยอด Telegram ประจำรอบ */
 function toggleStore() {
     menuData.storeOpen = !menuData.storeOpen;
     const noteInput = document.getElementById('openTimeTextNote');
     if (noteInput && noteInput.value.trim()) {
         menuData.openTimeNote = noteInput.value.trim();
     }
+
+    if (!menuData.storeOpen) {
+        // เมื่อกดปิดร้าน -> สรุปยอดขายของรอบนี้และส่งเข้า Telegram
+        sendDailySummaryToTelegram();
+        alert('ปิดร้านเรียบร้อยแล้ว! ระบบทำการส่งสรุปยอดขายรอบนี้เข้า Telegram แล้ว');
+    } else {
+        // เมื่อกดเปิดร้าน -> เริ่มนับรอบยอดขายใหม่ (ล้างข้อมูลออเดอร์รอบเก่า)
+        menuData.todayOrders = [];
+        sendTelegramSimpleText(`🟢 *เปิดร้านเรียบร้อยแล้ว!* (${menuData.openTimeNote})\nพร้อมรับออเดอร์รอบใหม่แล้วครับ 🍜`);
+        alert('เปิดร้านเรียบร้อยแล้ว! เริ่มเปิดนับยอดขายรอบใหม่');
+    }
+    
     saveData();
-    alert(menuData.storeOpen ? 'เปิดร้านเรียบร้อยแล้ว' : 'ปิดร้านเรียบร้อยแล้ว');
+}
+
+function sendDailySummaryToTelegram() {
+    if (!menuData.telegramToken || !menuData.telegramChatId) return;
+
+    const orders = menuData.todayOrders || [];
+    const totalCount = orders.length;
+    let totalRevenue = 0;
+    const noodleStats = {};
+    const toppingStats = {};
+
+    orders.forEach(ord => {
+        totalRevenue += (ord.totalPrice || 0);
+
+        if (ord.noodleName) {
+            noodleStats[ord.noodleName] = (noodleStats[ord.noodleName] || 0) + 1;
+        }
+
+        if (ord.toppingNamesList && Array.isArray(ord.toppingNamesList)) {
+            ord.toppingNamesList.forEach(tName => {
+                toppingStats[tName] = (toppingStats[tName] || 0) + 1;
+            });
+        }
+    });
+
+    let noodleText = '';
+    const noodleKeys = Object.keys(noodleStats);
+    if (noodleKeys.length > 0) {
+        noodleKeys.forEach(key => {
+            noodleText += `   • ${key}: ${noodleStats[key]} ชาม\n`;
+        });
+    } else {
+        noodleText = '   • ไม่มีรายการ\n';
+    }
+
+    let toppingText = '';
+    const toppingKeys = Object.keys(toppingStats);
+    if (toppingKeys.length > 0) {
+        toppingKeys.forEach(key => {
+            toppingText += `   • ${key}: ${toppingStats[key]} ชิ้น\n`;
+        });
+    } else {
+        toppingText = '   • ไม่มีรายการ\n';
+    }
+
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+    const timeStr = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+
+    const summaryMsg = `📊 *[สรุปยอดขายตอนปิดร้าน]* 🔴
+📅 *วันที่:* ${dateStr} (เวลาปิดร้าน ${timeStr} น.)
+----------------------------------
+🛍️ *จำนวนออเดอร์ทั้งหมดในรอบนี้:* ${totalCount} ชาม
+💰 *ยอดขายรวมสุทธิ:* ${totalRevenue} บาท
+
+🍜 *สรุปเมนูมาม่าที่ขายได้:*
+${noodleText}
+🧀 *สรุปท็อปปิ้งที่เลือกเพิ่ม:*
+${toppingText}----------------------------------
+✨ *ปิดรอบเรียบร้อยแล้ว ขอบคุณครับ!*`;
+
+    sendTelegramSimpleText(summaryMsg);
 }
 
 function saveOpenTimeNote() {
@@ -722,7 +796,8 @@ ${statusTitle}
 💵 *ยอดรวมทั้งออเดอร์:* ${data.totalPrice} บาท
 
 👤 *ผู้สั่ง:* ${cust.name || '-'}
-📞 *เบอร์โทร:* ${cust.phone || '-'}`;
+📞 *เบอร์โทร:* ${cust.phone || '-'}
+👤 *Facebook:* ${cust.facebook || '-'}`;
 
     fetch(`https://api.telegram.org/bot${menuData.telegramToken}/sendMessage`, {
         method: 'POST',
@@ -749,6 +824,7 @@ ${statusTitle || '⏳ สถานะ: รอยืนยันออเดอ�
 
 👤 *ผู้สั่ง:* ${cust.name || '-'}
 📞 *เบอร์โทร:* ${cust.phone || '-'}
+👤 *Facebook:* ${cust.facebook || '-'}
 🏠 *ที่อยู่:* ${cust.address || '-'}
 📝 *หมายเหตุ:* ${cust.comment || '-'}
 📍 *พิกัด GPS:* ${cust.location || '-'}`;
@@ -949,7 +1025,7 @@ function calculateTotal(method) {
         totalPrice: total,
         name: document.getElementById('custName').value,
         phone: document.getElementById('custPhone').value,
-        facebook: document.getElementById('custFacebook') ? document.getElementById('custFacebook').value : '-',
+        facebook: document.getElementById('custFacebook') ? document.getElementById('custFacebook').value.trim() : '-',
         address: document.getElementById('custAddress').value || '-',
         comment: document.getElementById('custComment').value || '-',
         location: `https://www.google.com/maps?q=${userLat},${userLng}`
