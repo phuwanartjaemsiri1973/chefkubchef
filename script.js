@@ -43,20 +43,20 @@ let menuData = JSON.parse(localStorage.getItem('menuData')) || {
     telegramChatId: '',
     storeOpen: true,
     openTimeNote: 'เปิดเวลา 17:00 น.',
-    todayOrders: [],
-    localActiveOrders: {}
+    localActiveOrders: {},
+    currentRoundItems: []
 };
 
 // ตรวจสอบและซ่อมโครงสร้างข้อมูลใน Local Storage
-if (!Array.isArray(menuData.noodles)) menuData.noodles = [];
-if (!Array.isArray(menuData.toppings)) menuData.toppings = [];
+if (!Array.isArray(menuData.noodles)) menuData.noodles = Object.values(menuData.noodles || {});
+if (!Array.isArray(menuData.toppings)) menuData.toppings = Object.values(menuData.toppings || {});
 menuData.toppings.forEach(t => {
     if (t.available === undefined) t.available = (t.stock === undefined || t.stock > 0);
 });
 if (menuData.storeOpen === undefined) menuData.storeOpen = true;
 if (!menuData.openTimeNote) menuData.openTimeNote = 'เปิดเวลา 17:00 น.';
-if (!Array.isArray(menuData.todayOrders)) menuData.todayOrders = [];
 if (!menuData.localActiveOrders) menuData.localActiveOrders = {};
+if (!Array.isArray(menuData.currentRoundItems)) menuData.currentRoundItems = [];
 
 let selectedNoodleId = null;
 let selectedSpiciness = 'เผ็ดธรรมดา';
@@ -78,7 +78,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function escapeHtml(text) {
-    if (text === null || text === undefined) return '';
+    if (!text) return '';
     return String(text)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
@@ -93,8 +93,21 @@ function initRealtimeSync() {
             const data = snapshot.val();
             if (data) {
                 menuData = { ...menuData, ...data };
-                // บังคับรีเซ็ตเป็น [] หาก Firebase ส่ง null กลับมา (ป้องกันยอดยังค้าง)
-                menuData.todayOrders = Array.isArray(data.todayOrders) ? data.todayOrders : [];
+                
+                // ป้องกันปัญหา Firebase แปลง Array เป็น Object
+                if (data.noodles) {
+                    menuData.noodles = Array.isArray(data.noodles) ? data.noodles : Object.values(data.noodles);
+                } else {
+                    menuData.noodles = [];
+                }
+
+                if (data.toppings) {
+                    menuData.toppings = Array.isArray(data.toppings) ? data.toppings : Object.values(data.toppings);
+                } else {
+                    menuData.toppings = [];
+                }
+
+                menuData.currentRoundItems = Array.isArray(data.currentRoundItems) ? data.currentRoundItems : [];
                 localStorage.setItem('menuData', JSON.stringify(menuData));
             } else {
                 db.ref('menuData').set(menuData);
@@ -122,15 +135,17 @@ function saveData() {
     }
     renderCustomerMenu();
     renderAdminTables();
+    renderAdminOrdersList(menuData.localActiveOrders || {});
 }
 
-function restoreStockForItem(item, autoSave = false) {
+function restoreStockForItem(item) {
     if (!item || item.stockRestored) return;
-    const noodle = menuData.noodles.find(n => n.id == item.noodleId || n.name === item.noodle);
+    if (!Array.isArray(menuData.noodles)) menuData.noodles = Object.values(menuData.noodles || {});
+    const noodle = menuData.noodles.find(n => String(n.id) === String(item.noodleId) || n.name === item.noodle);
     if (noodle) {
         noodle.stock += 1;
         item.stockRestored = true;
-        if (autoSave) saveData();
+        saveData();
     }
 }
 
@@ -206,10 +221,10 @@ function switchPaymentMethod(method) {
 /* ---------- ระบบสลับหน้าร้าน / หน้ารอออเดอร์ ---------- */
 
 function switchToOrderingView() {
-    const orderingView = document.getElementById('orderingView');
-    const waitingView = document.getElementById('waitingView');
-    if (orderingView) orderingView.style.display = 'block';
-    if (waitingView) waitingView.style.display = 'none';
+    const ordView = document.getElementById('orderingView');
+    const waitView = document.getElementById('waitingView');
+    if (ordView) ordView.style.display = 'block';
+    if (waitView) waitView.style.display = 'none';
     window.scrollTo({ top: 0, behavior: 'smooth' });
     
     const banner = document.getElementById('activeOrderBanner');
@@ -223,10 +238,10 @@ function switchToWaitingView() {
         alert('คุณยังไม่มีออเดอร์ที่กำลังดำเนินการครับ');
         return;
     }
-    const orderingView = document.getElementById('orderingView');
-    const waitingView = document.getElementById('waitingView');
-    if (orderingView) orderingView.style.display = 'none';
-    if (waitingView) waitingView.style.display = 'block';
+    const ordView = document.getElementById('orderingView');
+    const waitView = document.getElementById('waitingView');
+    if (ordView) ordView.style.display = 'none';
+    if (waitView) waitView.style.display = 'block';
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -267,10 +282,10 @@ function dismissCustomerOrder() {
 }
 
 function showOrderingView() {
-    const orderingView = document.getElementById('orderingView');
-    const waitingView = document.getElementById('waitingView');
-    if (orderingView) orderingView.style.display = 'block';
-    if (waitingView) waitingView.style.display = 'none';
+    const ordView = document.getElementById('orderingView');
+    const waitView = document.getElementById('waitingView');
+    if (ordView) ordView.style.display = 'block';
+    if (waitView) waitView.style.display = 'none';
 }
 
 function showWaitingView(order) {
@@ -369,28 +384,27 @@ function finishOrder() {
     const selectedPayment = selectedPaymentEle ? selectedPaymentEle.value : 'promptpay';
     let paymentText = selectedPayment === 'promptpay' ? "💳 พร้อมเพย์ (สแกนโอนเงิน)" : "🇹🇭 ไทยช่วยไทย (ลูกค้ารอทักแชต FB)";
 
-    currentOrderData = currentOrderData || {};
     currentOrderData.paymentMethod = paymentText;
 
     const newItem = {
         itemId: 'ITM-' + Date.now(),
         noodleId: selectedNoodleId,
-        noodle: currentOrderData.noodle || '-',
-        spiciness: currentOrderData.spiciness || 'เผ็ดธรรมดา',
-        toppings: currentOrderData.toppings || 'ไม่ใส่เครื่อง',
-        toppingNamesList: currentOrderData.toppingNamesList || [],
-        veg: currentOrderData.veg || 'ใส่',
-        totalPrice: currentOrderData.totalPrice || 0,
+        noodle: currentOrderData.noodle,
+        spiciness: currentOrderData.spiciness,
+        toppings: currentOrderData.toppings,
+        toppingNamesList: currentOrderData.toppingNamesList,
+        veg: currentOrderData.veg,
+        totalPrice: currentOrderData.totalPrice,
         status: 'pending'
     };
 
     const customerInfo = {
-        name: currentOrderData.name || '-',
-        phone: currentOrderData.phone || '-',
-        facebook: currentOrderData.facebook || '-',
-        address: currentOrderData.address || '-',
-        comment: currentOrderData.comment || '-',
-        location: currentOrderData.location || '#'
+        name: currentOrderData.name,
+        phone: currentOrderData.phone,
+        facebook: currentOrderData.facebook,
+        address: currentOrderData.address,
+        comment: currentOrderData.comment,
+        location: currentOrderData.location
     };
 
     if (isFirebaseConnected && db && currentOrderId) {
@@ -404,7 +418,11 @@ function finishOrder() {
                 existingOrder.customer = customerInfo;
                 existingOrder.timestamp = new Date().toLocaleString('th-TH');
 
+                if (!menuData.currentRoundItems) menuData.currentRoundItems = [];
+                menuData.currentRoundItems.push(newItem);
+
                 db.ref('activeOrders/' + currentOrderId).set(existingOrder);
+                menuData.localActiveOrders[currentOrderId] = existingOrder;
                 sendTelegramNotificationForItem(existingOrder, newItem, '➕ ลูกค้าสั่งอาหารเพิ่มในรหัสออเดอร์เดิม');
                 finalizeOrderUI();
             } else {
@@ -429,6 +447,9 @@ function createNewOrderGroup(newItem, customerInfo, paymentText) {
         cancelReason: ''
     };
 
+    if (!menuData.currentRoundItems) menuData.currentRoundItems = [];
+    menuData.currentRoundItems.push(newItem);
+
     if (isFirebaseConnected && db) {
         db.ref('activeOrders/' + orderId).set(newOrderGroup);
     }
@@ -439,23 +460,16 @@ function createNewOrderGroup(newItem, customerInfo, paymentText) {
     currentOrderId = orderId;
 
     const slipInput = document.getElementById('slipFileInput');
-    const slipFile = (slipInput && slipInput.files.length > 0) ? slipInput.files[0] : null;
+    const slipFile = (slipInput && slipInput.files && slipInput.files.length > 0) ? slipInput.files[0] : null;
     sendTelegramNotification(newOrderGroup, slipFile, '⏳ สถานะ: รอยืนยันออเดอร์จากพ่อค้า');
 
     finalizeOrderUI();
 }
 
 function finalizeOrderUI() {
-    const noodle = menuData.noodles.find(n => n.id == selectedNoodleId);
+    if (!Array.isArray(menuData.noodles)) menuData.noodles = Object.values(menuData.noodles || {});
+    const noodle = menuData.noodles.find(n => String(n.id) === String(selectedNoodleId));
     if (noodle && noodle.stock > 0) noodle.stock -= 1;
-
-    if (!menuData.todayOrders) menuData.todayOrders = [];
-    menuData.todayOrders.push({
-        noodleName: currentOrderData.noodle,
-        toppingNamesList: currentOrderData.toppingNamesList,
-        totalPrice: currentOrderData.totalPrice,
-        time: new Date().toLocaleTimeString('th-TH')
-    });
 
     const slipInput = document.getElementById('slipFileInput');
     if (slipInput) slipInput.value = '';
@@ -464,10 +478,10 @@ function finalizeOrderUI() {
     closeModal();
     saveData();
     
-    const orderingView = document.getElementById('orderingView');
-    const waitingView = document.getElementById('waitingView');
-    if (orderingView) orderingView.style.display = 'none';
-    if (waitingView) waitingView.style.display = 'block';
+    const ordView = document.getElementById('orderingView');
+    const waitView = document.getElementById('waitingView');
+    if (ordView) ordView.style.display = 'none';
+    if (waitView) waitView.style.display = 'block';
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
     checkCustomerActiveOrder();
@@ -482,21 +496,25 @@ function cancelCustomerItem(orderId, itemId) {
         order.items.forEach(it => {
             if (it.itemId === itemId) {
                 it.status = 'cancelled';
-                restoreStockForItem(it, false);
+                restoreStockForItem(it);
             }
             if (it.status !== 'cancelled') activeCount++;
         });
+
+        if (menuData.currentRoundItems) {
+            const rItem = menuData.currentRoundItems.find(ri => ri.itemId === itemId);
+            if (rItem) rItem.status = 'cancelled';
+        }
 
         order.totalPrice = order.items.reduce((sum, it) => it.status !== 'cancelled' ? sum + it.totalPrice : sum, 0);
         if (activeCount === 0) order.status = 'cancelled';
 
         if (isFirebaseConnected && db) {
             db.ref('activeOrders/' + orderId).set(order);
-        } else {
-            menuData.localActiveOrders[orderId] = order;
-            checkCustomerActiveOrder();
         }
+        menuData.localActiveOrders[orderId] = order;
         saveData();
+        checkCustomerActiveOrder();
         sendTelegramSimpleText(`❌ <b>ลูกค้ายกเลิกรายการย่อย ${escapeHtml(itemId)} ในออเดอร์ ${escapeHtml(orderId)}</b>`);
     };
 
@@ -519,16 +537,19 @@ function cancelCustomerOrder(orderId) {
             if (order.items) {
                 order.items.forEach(it => {
                     it.status = 'cancelled';
-                    restoreStockForItem(it, false);
+                    restoreStockForItem(it);
+                    if (menuData.currentRoundItems) {
+                        const rItem = menuData.currentRoundItems.find(ri => ri.itemId === it.itemId);
+                        if (rItem) rItem.status = 'cancelled';
+                    }
                 });
             }
             if (isFirebaseConnected && db) {
                 db.ref('activeOrders/' + idToCancel).set(order);
-            } else {
-                menuData.localActiveOrders[idToCancel] = order;
-                checkCustomerActiveOrder();
             }
+            menuData.localActiveOrders[idToCancel] = order;
             saveData();
+            checkCustomerActiveOrder();
         }
     };
 
@@ -540,7 +561,8 @@ function cancelCustomerOrder(orderId) {
     sendTelegramSimpleText(`❌ <b>ออเดอร์ ${escapeHtml(idToCancel)} ถูกยกเลิกทั้งหมดโดยลูกค้า</b>`);
 }
 
-/* ---------- ระบบหลังบ้าน ---------- */
+/* ---------- ระบบหลังบ้าน (ADMIN) ---------- */
+
 function switchAdminTab(tab) {
     const ordersTab = document.getElementById('adminTabOrders');
     const stockTab = document.getElementById('adminTabStock');
@@ -552,11 +574,13 @@ function switchAdminTab(tab) {
         if (stockTab) stockTab.style.display = 'none';
         if (ordersBtn) ordersBtn.classList.add('active');
         if (stockBtn) stockBtn.classList.remove('active');
+        renderAdminOrdersList(menuData.localActiveOrders);
     } else {
         if (ordersTab) ordersTab.style.display = 'none';
         if (stockTab) stockTab.style.display = 'block';
         if (stockBtn) stockBtn.classList.add('active');
         if (ordersBtn) ordersBtn.classList.remove('active');
+        renderAdminTables();
     }
 }
 
@@ -564,17 +588,23 @@ function renderAdminOrdersList(orders) {
     const container = document.getElementById('adminOrdersContainer');
     if (!container) return;
 
-    const orderKeys = Object.keys(orders || {});
-    if (orderKeys.length === 0) {
-        container.innerHTML = '<p style="font-size:13px; color:var(--text-muted); text-align:center; padding:10px;">ไม่มีออเดอร์ค้างในระบบ</p>';
+    const activeOrders = orders || menuData.localActiveOrders || {};
+    const orderKeys = Object.keys(activeOrders);
+    
+    // คัดกรองออเดอร์ที่ยังค้างอยู่
+    const pendingKeys = orderKeys.filter(key => {
+        const ord = activeOrders[key];
+        return ord && ord.status !== 'completed' && ord.status !== 'cancelled';
+    });
+
+    if (pendingKeys.length === 0) {
+        container.innerHTML = '<p style="font-size:13px; color:var(--text-muted); text-align:center; padding:15px; background:#f8f9fa; border-radius:8px;">ไม่มีออเดอร์ค้างในระบบ</p>';
         return;
     }
 
     let html = '';
-    orderKeys.reverse().forEach(key => {
-        const ord = orders[key];
-        if (!ord || ord.status === 'completed' || ord.status === 'cancelled') return;
-
+    pendingKeys.reverse().forEach(key => {
+        const ord = activeOrders[key];
         const targetId = ord.id || key;
         let statusText = ord.status === 'pending' ? '⏳ รอยืนยัน' : '👨‍🍳 กำลังปรุงอาหาร';
         let statusColor = ord.status === 'pending' ? '#ffa502' : '#2ed573';
@@ -602,17 +632,17 @@ function renderAdminOrdersList(orders) {
         });
 
         html += `
-            <div style="border: 1px solid var(--border-color); border-radius: 10px; padding: 12px; margin-bottom: 12px; background: #fff;">
+            <div style="border: 1px solid var(--border-color); border-radius: 10px; padding: 12px; margin-bottom: 12px; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.03);">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
                     <strong style="font-size:14px; color:var(--primary);">${escapeHtml(targetId)}</strong>
-                    <span style="font-size:11px; padding:2px 8px; border-radius:12px; color:white; background:${statusColor}; font-weight:600;">${statusText}</span>
+                    <span style="font-size:11px; padding:3px 8px; border-radius:12px; color:white; background:${statusColor}; font-weight:600;">${statusText}</span>
                 </div>
                 <div style="font-size:12px; color:var(--text-main); line-height: 1.5; margin-bottom: 8px;">
                     • <b>ผู้สั่ง:</b> ${escapeHtml(cust.name || ord.name || '-')} (${escapeHtml(cust.phone || ord.phone || '-')})<br>
                     • <b>Facebook:</b> ${escapeHtml(cust.facebook || '-')}<br>
                     • <b>การชำระเงิน:</b> ${escapeHtml(ord.paymentMethod || '-')}<br>
                     • <b>ยอดรวมทั้งสิ้น:</b> <span style="color:var(--primary); font-weight:bold;">${ord.totalPrice} บาท</span><br>
-                    • <b>พิกัด/ที่อยู่:</b> ${escapeHtml(cust.address || ord.address || '-')} (<a href="${escapeHtml(cust.location || ord.location || '#')}" target="_blank">ดูแผนที่ GPS</a>)
+                    • <b>พิกัด/ที่อยู่:</b> ${escapeHtml(cust.address || ord.address || '-')} (${cust.location || ord.location ? `<a href="${escapeHtml(cust.location || ord.location)}" target="_blank" style="color:var(--primary); text-decoration:underline;">ดูแผนที่ GPS</a>` : '-'})
                 </div>
                 <div style="margin-bottom:10px;">
                     <strong style="font-size:12px; color:var(--text-main);">รายการสั่งซื้อย่อยทั้งหมด:</strong>
@@ -623,12 +653,12 @@ function renderAdminOrdersList(orders) {
 
         if (ord.status === 'pending') {
             html += `
-                <button onclick="updateOrderStatusByAdmin('${targetId}', 'confirmed')" class="btn-primary btn-small btn-success" style="flex:1; cursor:pointer;">✅ ยืนยันออเดอร์ทั้งหมด</button>
-                <button onclick="cancelOrderByAdmin('${targetId}')" class="btn-primary btn-small btn-danger" style="flex:1; cursor:pointer;">❌ ปฏิเสธทั้งหมด</button>
+                <button onclick="updateOrderStatusByAdmin('${targetId}', 'confirmed')" class="btn-primary btn-small btn-success" style="flex:1; cursor:pointer; padding:8px;">✅ ยืนยันออเดอร์ทั้งหมด</button>
+                <button onclick="cancelOrderByAdmin('${targetId}')" class="btn-primary btn-small btn-danger" style="flex:1; cursor:pointer; padding:8px;">❌ ปฏิเสธทั้งหมด</button>
             `;
         } else if (ord.status === 'confirmed') {
             html += `
-                <button onclick="updateOrderStatusByAdmin('${targetId}', 'completed')" class="btn-primary btn-small btn-info" style="flex:1; cursor:pointer;">🎉 ทำเสร็จแล้ว/ส่งแล้ว</button>
+                <button onclick="updateOrderStatusByAdmin('${targetId}', 'completed')" class="btn-primary btn-small btn-info" style="flex:1; cursor:pointer; padding:8px;">🎉 ทำเสร็จแล้ว/ส่งแล้ว</button>
             `;
         }
 
@@ -638,7 +668,7 @@ function renderAdminOrdersList(orders) {
         `;
     });
 
-    container.innerHTML = html || '<p style="font-size:13px; color:var(--text-muted); text-align:center; padding:10px;">ไม่มีออเดอร์ค้างในระบบ</p>';
+    container.innerHTML = html;
 }
 
 function cancelItemByAdmin(orderId, itemId) {
@@ -658,10 +688,15 @@ function cancelItemByAdmin(orderId, itemId) {
                 it.status = 'cancelled';
                 it.cancelReason = reason;
                 targetNoodle = it.noodle;
-                restoreStockForItem(it, false);
+                restoreStockForItem(it);
             }
             if (it.status !== 'cancelled') activeCount++;
         });
+
+        if (menuData.currentRoundItems) {
+            const rItem = menuData.currentRoundItems.find(ri => ri.itemId === itemId);
+            if (rItem) rItem.status = 'cancelled';
+        }
 
         order.cancelReason = `รายการ "${targetNoodle}" ถูกยกเลิก: ${reason}`;
         order.totalPrice = order.items.reduce((sum, it) => it.status !== 'cancelled' ? sum + it.totalPrice : sum, 0);
@@ -669,10 +704,8 @@ function cancelItemByAdmin(orderId, itemId) {
 
         if (isFirebaseConnected && db) {
             db.ref('activeOrders/' + orderId).set(order);
-        } else {
-            menuData.localActiveOrders[orderId] = order;
-            renderAdminOrdersList(menuData.localActiveOrders);
         }
+        menuData.localActiveOrders[orderId] = order;
         saveData();
         sendTelegramSimpleText(`⚠️ <b>พ่อค้ายกเลิกรายการ ${escapeHtml(targetNoodle)} ใน ${escapeHtml(orderId)}</b>\nสาเหตุ: ${escapeHtml(reason)}`);
         alert('ส่งข้อความแจ้งลูกค้าและยกเลิกรายการเรียบร้อยแล้ว');
@@ -701,16 +734,18 @@ function cancelOrderByAdmin(orderId) {
             order.items.forEach(it => {
                 it.status = 'cancelled';
                 it.cancelReason = reason;
-                restoreStockForItem(it, false);
+                restoreStockForItem(it);
+                if (menuData.currentRoundItems) {
+                    const rItem = menuData.currentRoundItems.find(ri => ri.itemId === it.itemId);
+                    if (rItem) rItem.status = 'cancelled';
+                }
             });
         }
 
         if (isFirebaseConnected && db) {
             db.ref('activeOrders/' + orderId).set(order);
-        } else {
-            menuData.localActiveOrders[orderId] = order;
-            renderAdminOrdersList(menuData.localActiveOrders);
         }
+        menuData.localActiveOrders[orderId] = order;
         saveData();
         sendTelegramSimpleText(`❌ <b>พ่อค้ายกเลิกออเดอร์ ${escapeHtml(orderId)}</b>\nสาเหตุ: ${escapeHtml(reason)}`);
         alert('ยกเลิกออเดอร์และแจ้งลูกค้าเรียบร้อยแล้ว');
@@ -726,15 +761,15 @@ function cancelOrderByAdmin(orderId) {
 function updateOrderStatusByAdmin(orderId, newStatus) {
     if (!orderId) return;
     
+    if (menuData.localActiveOrders && menuData.localActiveOrders[orderId]) {
+        menuData.localActiveOrders[orderId].status = newStatus;
+    }
+
     if (isFirebaseConnected && db) {
         db.ref('activeOrders/' + orderId + '/status').set(newStatus);
-    } else {
-        if (menuData.localActiveOrders && menuData.localActiveOrders[orderId]) {
-            menuData.localActiveOrders[orderId].status = newStatus;
-            saveData();
-            renderAdminOrdersList(menuData.localActiveOrders);
-        }
     }
+    
+    saveData();
 
     if (newStatus === 'confirmed') {
         sendTelegramSimpleText(`✅ <b>พ่อค้ายืนยันรับออเดอร์ ${escapeHtml(orderId)} แล้ว!</b> 👨‍🍳\nกำลังเริ่มประกอบอาหารให้ลูกค้าทันที`);
@@ -753,74 +788,41 @@ function toggleStore() {
     }
 
     if (!menuData.storeOpen) {
-        // 1. ส่งสรุปยอดขายเฉพาะรอบนี้เข้า Telegram
-        sendDailySummaryToTelegram();
-        
-        // 2. ล้างยอดขายรอบนี้ทิ้งทันทีเมื่อกดปิดร้าน
-        menuData.todayOrders = [];
-        
-        alert('ปิดร้านเรียบร้อยแล้ว! ส่งสรุปยอดขายรอบนี้เข้า Telegram และเคลียร์ยอดสำหรับรอบถัดไปแล้วครับ');
+        sendRoundSummaryTelegram();
+        menuData.currentRoundItems = [];
+        alert('ปิดร้านเรียบร้อยแล้ว!');
     } else {
-        // 3. เมื่อกดเปิดร้าน -> ล้างยอดรอบเก่าทิ้งซ้ำอีกรอบเพื่อความชัวร์ ให้เริ่มนับจาก 0
-        menuData.todayOrders = [];
-        
+        menuData.currentRoundItems = []; 
         sendTelegramSimpleText(`🟢 <b>เปิดร้านเรียบร้อยแล้ว!</b> (${escapeHtml(menuData.openTimeNote)})\nพร้อมรับออเดอร์รอบใหม่แล้วครับ 🍜`);
-        alert('เปิดร้านเรียบร้อยแล้ว! เริ่มนับยอดขายรอบใหม่ (0 ออเดอร์)');
+        alert('เปิดร้านเรียบร้อยแล้ว!');
     }
     
     saveData();
 }
 
-function sendDailySummaryToTelegram() {
+function sendRoundSummaryTelegram() {
     if (!menuData.telegramToken || !menuData.telegramChatId) return;
 
-    const orders = menuData.todayOrders || [];
-    const totalCount = orders.length;
-    let totalRevenue = 0;
-    const noodleStats = {};
-    const toppingStats = {};
+    const roundItems = (menuData.currentRoundItems || []).filter(item => item.status !== 'cancelled');
+    let totalSales = 0;
+    let menuListText = '';
 
-    orders.forEach(ord => {
-        totalRevenue += (ord.totalPrice || 0);
-        if (ord.noodleName) {
-            noodleStats[ord.noodleName] = (noodleStats[ord.noodleName] || 0) + 1;
-        }
-        if (ord.toppingNamesList && Array.isArray(ord.toppingNamesList)) {
-            ord.toppingNamesList.forEach(tName => {
-                toppingStats[tName] = (toppingStats[tName] || 0) + 1;
-            });
-        }
-    });
+    if (roundItems.length === 0) {
+        menuListText = 'ไม่มีรายการขายในรอบนี้';
+    } else {
+        roundItems.forEach((item, index) => {
+            totalSales += (item.totalPrice || 0);
+            menuListText += `${index + 1}. ${escapeHtml(item.noodle)} - <b>${item.totalPrice} บาท</b>\n`;
+        });
+    }
 
-    let noodleText = '';
-    const noodleKeys = Object.keys(noodleStats);
-    if (noodleKeys.length > 0) {
-        noodleKeys.forEach(key => { noodleText += `   • ${escapeHtml(key)}: ${noodleStats[key]} ชาม\n`; });
-    } else { noodleText = '   • ไม่มีรายการ\n'; }
+    const summaryMsg = `📊 <b>สรุปยอดการขายประจำรอบ</b>\n----------------------------\n<b>รายการเมนูที่ขายออก:</b>\n${menuListText}\n💰 <b>ยอดขายรวมทั้งหมด:</b> ${totalSales} บาท`;
 
-    let toppingText = '';
-    const toppingKeys = Object.keys(toppingStats);
-    if (toppingKeys.length > 0) {
-        toppingKeys.forEach(key => { toppingText += `   • ${escapeHtml(key)}: ${toppingStats[key]} ชิ้น\n`; });
-    } else { toppingText = '   • ไม่มีรายการ\n'; }
-
-    const now = new Date();
-    const dateStr = now.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
-    const timeStr = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-
-    const summaryMsg = `📊 <b>[สรุปยอดขายตอนปิดร้าน]</b> 🔴
-📅 <b>วันที่:</b> ${escapeHtml(dateStr)} (เวลาปิดร้าน ${escapeHtml(timeStr)} น.)
-----------------------------------
-🛍️ <b>จำนวนออเดอร์ทั้งหมดในรอบนี้:</b> ${totalCount} ชาม
-💰 <b>ยอดขายรวมสุทธิ:</b> ${totalRevenue} บาท
-
-🍜 <b>สรุปเมนูมาม่าที่ขายได้:</b>
-${noodleText}
-🧀 <b>สรุปท็อปปิ้งที่เลือกเพิ่ม:</b>
-${toppingText}----------------------------------
-✨ <b>ปิดรอบเรียบร้อยแล้ว ขอบคุณครับ!</b>`;
-
-    sendTelegramSimpleText(summaryMsg);
+    fetch(`https://api.telegram.org/bot${menuData.telegramToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: menuData.telegramChatId, text: summaryMsg, parse_mode: 'HTML' })
+    }).catch(err => console.error('Telegram Summary Error:', err));
 }
 
 function saveOpenTimeNote() {
@@ -842,6 +844,11 @@ function sendTelegramSimpleText(msgHtml) {
 }
 
 function testTelegram() {
+    const tokenInput = document.getElementById('telegramToken');
+    const chatIdInput = document.getElementById('telegramChatId');
+    if (tokenInput) menuData.telegramToken = tokenInput.value.trim();
+    if (chatIdInput) menuData.telegramChatId = chatIdInput.value.trim();
+
     if (!menuData.telegramToken || !menuData.telegramChatId) {
         alert('กรุณากรอก Bot Token และ Chat ID ให้ครบถ้วนก่อนทดสอบ');
         return;
@@ -879,18 +886,23 @@ ${escapeHtml(statusTitle)}
 function sendTelegramNotification(data, slipFile, statusTitle) {
     if (!menuData.telegramToken || !menuData.telegramChatId) return;
     const cust = data.customer || {};
-    const firstItem = (data.items && data.items.length > 0) ? data.items[0] : {};
+    const items = data.items || [];
+
+    let itemsDetailsText = '';
+    items.forEach((item, index) => {
+        itemsDetailsText += `\n🍜 <b>รายการที่ ${index + 1}:</b> ${escapeHtml(item.noodle || '-')}
+🌶️ <b>ความเผ็ด:</b> ${escapeHtml(item.spiciness || '-')}
+🧀 <b>เครื่อง:</b> ${escapeHtml(item.toppings || '-')}
+🥬 <b>ผัก:</b> ${escapeHtml(item.veg || '-')}
+💰 <b>ราคา:</b> ${item.totalPrice || 0} บาท\n`;
+    });
 
     const captionText = `🍳 <b>มีออเดอร์ใหม่เข้ามาครับ!</b>
 🆔 <b>รหัสออเดอร์:</b> ${escapeHtml(data.id)}
 ${escapeHtml(statusTitle || '⏳ สถานะ: รอยืนยันออเดอร์จากพ่อค้า')}
-----------------------------
-🍜 <b>เมนู:</b> ${escapeHtml(firstItem.noodle || '-')}
-🌶️ <b>ความเผ็ด:</b> ${escapeHtml(firstItem.spiciness || '-')}
-🧀 <b>เครื่อง:</b> ${escapeHtml(firstItem.toppings || '-')}
-🥬 <b>ผัก:</b> ${escapeHtml(firstItem.veg || '-')}
+----------------------------${itemsDetailsText}----------------------------
 💳 <b>ชำระเงิน:</b> ${escapeHtml(data.paymentMethod || 'ไม่ได้ระบุ')}
-💰 <b>ราคาทั้งสิ้น:</b> ${data.totalPrice} บาท
+💰 <b>ราคารวมทั้งสิ้น:</b> ${data.totalPrice} บาท
 
 👤 <b>ผู้สั่ง:</b> ${escapeHtml(cust.name || '-')}
 📞 <b>เบอร์โทร:</b> ${escapeHtml(cust.phone || '-')}
@@ -928,7 +940,8 @@ function filterNoodleCategory(cat, el) {
 
 function selectNoodle(id) {
     if (!menuData.storeOpen) { alert(`ขออภัยครับ ร้านปิดบริการอยู่ (${menuData.openTimeNote})`); return; }
-    const noodle = menuData.noodles.find(n => n.id == id);
+    if (!Array.isArray(menuData.noodles)) menuData.noodles = Object.values(menuData.noodles || {});
+    const noodle = menuData.noodles.find(n => String(n.id) === String(id));
     if (noodle && noodle.stock <= 0) {
         alert('ขออภัยครับ เมนูนี้สินค้าหมดชั่วคราว');
         return;
@@ -973,18 +986,23 @@ function renderCustomerMenu() {
     if (!container) return;
     container.innerHTML = '';
 
-    const categories = ['Buldak', 'OK'];
-    categories.forEach(cat => {
-        if(activeCategoryFilter !== cat) return;
+    if (!Array.isArray(menuData.noodles)) menuData.noodles = Object.values(menuData.noodles || {});
+
+    // ดึงหมวดหมู่ทั้งหมดจากข้อมูลจริงเพื่อรองรับการเพิ่มเมนูแบบไดนามิก
+    const existingCategories = [...new Set(menuData.noodles.map(n => n.category).filter(Boolean))];
+    if (existingCategories.length === 0) existingCategories.push('Buldak', 'OK');
+
+    existingCategories.forEach(cat => {
+        if (activeCategoryFilter && activeCategoryFilter !== 'ทั้งหมด' && activeCategoryFilter !== cat) return;
         const filteredItems = menuData.noodles.filter(n => n.category === cat);
-        if(filteredItems.length > 0) {
-            const groupTitle = cat === 'Buldak' ? '🔥 ตระกูล Buldak' : '🍜 ตระกูล OK';
+        if (filteredItems.length > 0) {
+            const groupTitle = cat === 'Buldak' ? '🔥 ตระกูล Buldak' : (cat === 'OK' ? '🍜 ตระกูล OK' : `🍜 ตระกูล ${escapeHtml(cat)}`);
             let groupHtml = `<div class="noodle-group"><div class="noodle-group-title">${groupTitle}</div><div class="noodle-grid">`;
             filteredItems.forEach(n => {
                 const isOutOfStock = n.stock <= 0;
-                const isSelected = selectedNoodleId == n.id;
+                const isSelected = String(selectedNoodleId) === String(n.id);
                 groupHtml += `
-                    <div class="noodle-card ${isSelected ? 'selected' : ''} ${isOutOfStock ? 'out-of-stock' : ''}" onclick="selectNoodle(${n.id})">
+                    <div class="noodle-card ${isSelected ? 'selected' : ''} ${isOutOfStock ? 'out-of-stock' : ''}" onclick="selectNoodle('${n.id}')">
                         <div class="noodle-name">${escapeHtml(n.name)}</div>
                         <div class="noodle-footer">
                             <span class="noodle-price">${n.price}฿</span>
@@ -1001,11 +1019,12 @@ function renderCustomerMenu() {
     const tGrid = document.getElementById('toppingGrid');
     if (tGrid) {
         tGrid.innerHTML = '';
+        if (!Array.isArray(menuData.toppings)) menuData.toppings = Object.values(menuData.toppings || {});
         menuData.toppings.forEach(t => {
             const isOutOfStock = !t.available;
-            const isSelected = selectedToppings.includes(t.id);
+            const isSelected = selectedToppings.some(id => String(id) === String(t.id));
             tGrid.innerHTML += `
-                <div class="topping-card ${isSelected ? 'selected' : ''} ${isOutOfStock ? 'out-of-stock' : ''}" onclick="toggleTopping(${t.id})">
+                <div class="topping-card ${isSelected ? 'selected' : ''} ${isOutOfStock ? 'out-of-stock' : ''}" onclick="toggleTopping('${t.id}')">
                     <span>${escapeHtml(t.name)}</span>
                     <span style="font-size:11px; opacity:0.8;">${isOutOfStock ? 'หมด' : 'มีวัตถุดิบ'}</span>
                 </div>
@@ -1013,14 +1032,12 @@ function renderCustomerMenu() {
         });
     }
 
-    const vegContainer = document.getElementById('vegContainer');
-    const vegOutMessage = document.getElementById('vegOutMessage');
     if(menuData.vegActive) {
-        if (vegContainer) vegContainer.style.display = 'block';
-        if (vegOutMessage) vegOutMessage.style.display = 'none';
+        if (document.getElementById('vegContainer')) document.getElementById('vegContainer').style.display = 'block';
+        if (document.getElementById('vegOutMessage')) document.getElementById('vegOutMessage').style.display = 'none';
     } else {
-        if (vegContainer) vegContainer.style.display = 'none';
-        if (vegOutMessage) vegOutMessage.style.display = 'block';
+        if (document.getElementById('vegContainer')) document.getElementById('vegContainer').style.display = 'none';
+        if (document.getElementById('vegOutMessage')) document.getElementById('vegOutMessage').style.display = 'block';
         selectedVegOption = 'ไม่ใส่ (ผักหมด)';
     }
 
@@ -1029,12 +1046,13 @@ function renderCustomerMenu() {
 
 function toggleTopping(toppingId) {
     if (!menuData.storeOpen) { alert(`ขออภัยครับ ร้านปิดบริการอยู่ (${menuData.openTimeNote})`); return; }
-    const topping = menuData.toppings.find(t => t.id == toppingId);
+    if (!Array.isArray(menuData.toppings)) menuData.toppings = Object.values(menuData.toppings || {});
+    const topping = menuData.toppings.find(t => String(t.id) === String(toppingId));
     if (topping && !topping.available) {
         alert('วัตถุดิบนี้หมดชั่วคราวครับ');
         return;
     }
-    const index = selectedToppings.indexOf(toppingId);
+    const index = selectedToppings.findIndex(id => String(id) === String(toppingId));
     if (index > -1) selectedToppings.splice(index, 1);
     else selectedToppings.push(toppingId);
     renderCustomerMenu();
@@ -1056,7 +1074,8 @@ function setVeg(opt) {
 
 function updateLivePrice() {
     let total = 0;
-    const selectedNoodle = menuData.noodles.find(n => n.id == selectedNoodleId);
+    if (!Array.isArray(menuData.noodles)) menuData.noodles = Object.values(menuData.noodles || {});
+    const selectedNoodle = menuData.noodles.find(n => String(n.id) === String(selectedNoodleId));
     if (selectedNoodle) total += selectedNoodle.price;
     const toppingCount = selectedToppings.length;
     let toppingExtraFee = toppingCount > 2 ? (toppingCount - 2) * 10 : 0;
@@ -1090,39 +1109,41 @@ function openDeliveryModal() {
         return; 
     }
 
-    const orderModal = document.getElementById('orderModal');
+    const modal = document.getElementById('orderModal');
     const step1 = document.getElementById('modalStep1');
     const step2 = document.getElementById('modalStep2');
-    
-    if (orderModal) orderModal.style.display = 'flex';
+
+    if (modal) modal.style.display = 'flex';
     if (step1) step1.style.display = 'block';
     if (step2) step2.style.display = 'none';
 }
 
-function closeModal() {
-    const orderModal = document.getElementById('orderModal');
-    if (orderModal) orderModal.style.display = 'none';
+function closeModal() { 
+    const modal = document.getElementById('orderModal');
+    if (modal) modal.style.display = 'none'; 
 }
 
 function calculateTotal(method) {
     let total = 0;
-    const selectedNoodle = menuData.noodles.find(n => n.id == selectedNoodleId);
+    if (!Array.isArray(menuData.noodles)) menuData.noodles = Object.values(menuData.noodles || {});
+    const selectedNoodle = menuData.noodles.find(n => String(n.id) === String(selectedNoodleId));
     if (selectedNoodle) total += selectedNoodle.price;
 
     const toppingCount = selectedToppings.length;
     let toppingExtraFee = toppingCount > 2 ? (toppingCount - 2) * 10 : 0;
     total += toppingExtraFee;
 
+    if (!Array.isArray(menuData.toppings)) menuData.toppings = Object.values(menuData.toppings || {});
     const chosenToppingNames = selectedToppings.map(id => {
-        const t = menuData.toppings.find(item => item.id == id);
+        const t = menuData.toppings.find(item => String(item.id) === String(id));
         return t ? t.name : '';
     }).filter(Boolean);
 
-    const custNameEl = document.getElementById('custName');
-    const custPhoneEl = document.getElementById('custPhone');
-    const custFbEl = document.getElementById('custFacebook');
-    const custAddrEl = document.getElementById('custAddress');
-    const custCommentEl = document.getElementById('custComment');
+    const nameEl = document.getElementById('custName');
+    const phoneEl = document.getElementById('custPhone');
+    const fbEl = document.getElementById('custFacebook');
+    const addrEl = document.getElementById('custAddress');
+    const commEl = document.getElementById('custComment');
 
     currentOrderData = {
         noodle: selectedNoodle ? selectedNoodle.name : 'ไม่ได้เลือก',
@@ -1132,20 +1153,20 @@ function calculateTotal(method) {
         veg: selectedVegOption,
         method: method,
         totalPrice: total,
-        name: custNameEl ? custNameEl.value.trim() : '',
-        phone: custPhoneEl ? custPhoneEl.value.trim() : '',
-        facebook: custFbEl ? custFbEl.value.trim() : '-',
-        address: (custAddrEl && custAddrEl.value.trim()) ? custAddrEl.value.trim() : '-',
-        comment: (custCommentEl && custCommentEl.value.trim()) ? custCommentEl.value.trim() : '-',
+        name: nameEl ? nameEl.value.trim() : '-',
+        phone: phoneEl ? phoneEl.value.trim() : '-',
+        facebook: fbEl ? fbEl.value.trim() : '-',
+        address: (addrEl && addrEl.value.trim()) ? addrEl.value.trim() : '-',
+        comment: (commEl && commEl.value.trim()) ? commEl.value.trim() : '-',
         location: `https://www.google.com/maps?q=${userLat},${userLng}`
     };
 
-    const priceDisplay = document.getElementById('totalPriceDisplay');
-    if (priceDisplay) priceDisplay.innerText = `${total} บาท`;
-    
-    const summaryEl = document.getElementById('orderSummary');
-    if (summaryEl) {
-        summaryEl.innerHTML = `
+    const totalDisp = document.getElementById('totalPriceDisplay');
+    const orderSum = document.getElementById('orderSummary');
+
+    if (totalDisp) totalDisp.innerText = `${total} บาท`;
+    if (orderSum) {
+        orderSum.innerHTML = `
             <strong>สรุปรายการสั่งซื้อ:</strong><br>
             • เมนู: ${escapeHtml(currentOrderData.noodle)}<br>
             • ความเผ็ด: ${escapeHtml(currentOrderData.spiciness)}<br>
@@ -1172,40 +1193,39 @@ function toggleView() {
     const btnText = document.getElementById('adminBtnText');
     const closedModal = document.getElementById('storeClosedModal');
 
-    if (!custSec || !adminSec) return;
-
-    if (adminSec.style.display === 'none') {
-        custSec.style.display = 'none';
+    if (adminSec && adminSec.style.display === 'none') {
+        if (custSec) custSec.style.display = 'none';
         adminSec.style.display = 'block';
         if (btnText) btnText.innerText = 'หน้าร้าน';
         if (closedModal) closedModal.style.display = 'none';
     } else {
-        custSec.style.display = 'block';
-        adminSec.style.display = 'none';
+        if (custSec) custSec.style.display = 'block';
+        if (adminSec) adminSec.style.display = 'none';
         if (btnText) btnText.innerText = 'ระบบหลังบ้าน';
         renderCustomerMenu();
     }
 }
 
 function loginAdmin() {
-    const passEl = document.getElementById('adminPassword');
-    const pass = passEl ? passEl.value : '';
+    const passInput = document.getElementById('adminPassword');
+    const pass = passInput ? passInput.value : '';
+    
     if (pass === '0420') {
         const loginBox = document.getElementById('login-box');
-        const adminDashboard = document.getElementById('admin-dashboard');
-        if (loginBox) loginBox.style.display = 'none';
-        if (adminDashboard) adminDashboard.style.display = 'block';
-
+        const adminDash = document.getElementById('admin-dashboard');
         const tokenInput = document.getElementById('telegramToken');
         const chatIdInput = document.getElementById('telegramChatId');
         const noteInput = document.getElementById('openTimeTextNote');
 
+        if (loginBox) loginBox.style.display = 'none';
+        if (adminDash) adminDash.style.display = 'block';
         if (tokenInput) tokenInput.value = menuData.telegramToken || '';
         if (chatIdInput) chatIdInput.value = menuData.telegramChatId || '';
         if (noteInput) noteInput.value = menuData.openTimeNote || 'เปิดเวลา 17:00 น.';
 
         switchAdminTab('orders');
         renderAdminTables();
+        renderAdminOrdersList(menuData.localActiveOrders);
     } else {
         alert('รหัสผ่านไม่ถูกต้อง');
     }
@@ -1213,20 +1233,21 @@ function loginAdmin() {
 
 function logoutAdmin() {
     const loginBox = document.getElementById('login-box');
-    const adminDashboard = document.getElementById('admin-dashboard');
-    const passEl = document.getElementById('adminPassword');
+    const adminDash = document.getElementById('admin-dashboard');
+    const passInput = document.getElementById('adminPassword');
 
     if (loginBox) loginBox.style.display = 'block';
-    if (adminDashboard) adminDashboard.style.display = 'none';
-    if (passEl) passEl.value = '';
+    if (adminDash) adminDash.style.display = 'none';
+    if (passInput) passInput.value = '';
 }
 
 function saveTelegramSettings() {
     const tokenInput = document.getElementById('telegramToken');
     const chatIdInput = document.getElementById('telegramChatId');
 
-    menuData.telegramToken = tokenInput ? tokenInput.value.trim() : '';
-    menuData.telegramChatId = chatIdInput ? chatIdInput.value.trim() : '';
+    if (tokenInput) menuData.telegramToken = tokenInput.value.trim();
+    if (chatIdInput) menuData.telegramChatId = chatIdInput.value.trim();
+    
     saveData();
     alert('บันทึกการตั้งค่า Telegram เรียบร้อยแล้ว');
 }
@@ -1237,15 +1258,16 @@ function renderAdminTables() {
 
     if (menuData.storeOpen) {
         if (adminStatusText) { adminStatusText.innerText = `เปิดร้านอยู่ (${menuData.openTimeNote})`; adminStatusText.style.color = '#2ed573'; }
-        if (toggleBtn) { toggleBtn.innerText = '🔴 กดปิดร้าน (สรุปยอดขายส่ง Telegram)'; toggleBtn.style.background = 'linear-gradient(135deg, #ff4757, #ff6b81)'; }
+        if (toggleBtn) { toggleBtn.innerText = '🔴 กดปิดร้าน'; toggleBtn.style.background = 'linear-gradient(135deg, #ff4757, #ff6b81)'; }
     } else {
         if (adminStatusText) { adminStatusText.innerText = `ปิดร้านอยู่ (${menuData.openTimeNote})`; adminStatusText.style.color = '#ff4757'; }
-        if (toggleBtn) { toggleBtn.innerText = '🟢 กดเปิดร้าน (เริ่มรอบขายใหม่)'; toggleBtn.style.background = 'linear-gradient(135deg, #2ed573, #26af5f)'; }
+        if (toggleBtn) { toggleBtn.innerText = '🟢 กดเปิดร้าน'; toggleBtn.style.background = 'linear-gradient(135deg, #2ed573, #26af5f)'; }
     }
 
     const noodleTable = document.getElementById('noodleTable');
     if (noodleTable) {
         let nHtml = `<tr><th>ชื่อ</th><th>ราคา</th><th>สต็อก</th><th>จัดการ</th></tr>`;
+        if (!Array.isArray(menuData.noodles)) menuData.noodles = Object.values(menuData.noodles || {});
         menuData.noodles.forEach(n => {
             nHtml += `
                 <tr>
@@ -1253,12 +1275,12 @@ function renderAdminTables() {
                     <td>${n.price}฿</td>
                     <td>
                         <div class="stock-btn-group">
-                            <button class="stock-btn" onclick="updateNoodleStock(${n.id}, -1)">-</button>
-                            <span>${n.stock}</span>
-                            <button class="stock-btn" onclick="updateNoodleStock(${n.id}, 1)">+</button>
+                            <button class="stock-btn" onclick="updateNoodleStock('${n.id}', -1)">-</button>
+                            <span style="font-weight:bold; margin:0 6px;">${n.stock}</span>
+                            <button class="stock-btn" onclick="updateNoodleStock('${n.id}', 1)">+</button>
                         </div>
                     </td>
-                    <td><button onclick="deleteNoodle(${n.id})" class="btn-small btn-danger">ลบ</button></td>
+                    <td><button onclick="deleteNoodle('${n.id}')" class="btn-small btn-danger" style="cursor:pointer;">ลบ</button></td>
                 </tr>
             `;
         });
@@ -1268,14 +1290,15 @@ function renderAdminTables() {
     const toppingTable = document.getElementById('toppingTable');
     if (toppingTable) {
         let tHtml = `<tr><th>ชื่อวัตถุดิบ</th><th>สถานะ</th><th>จัดการ</th></tr>`;
+        if (!Array.isArray(menuData.toppings)) menuData.toppings = Object.values(menuData.toppings || {});
         menuData.toppings.forEach(t => {
             const statusBtnClass = t.available ? 'btn-success' : 'btn-danger';
             const statusText = t.available ? 'มีวัตถุดิบ' : 'หมด';
             tHtml += `
                 <tr>
                     <td>${escapeHtml(t.name)}</td>
-                    <td><button onclick="toggleToppingStatus(${t.id})" class="btn-small ${statusBtnClass}">${statusText}</button></td>
-                    <td><button onclick="deleteTopping(${t.id})" class="btn-small btn-danger">ลบ</button></td>
+                    <td><button onclick="toggleToppingStatus('${t.id}')" class="btn-small ${statusBtnClass}" style="cursor:pointer;">${statusText}</button></td>
+                    <td><button onclick="deleteTopping('${t.id}')" class="btn-small btn-danger" style="cursor:pointer;">ลบ</button></td>
                 </tr>
             `;
         });
@@ -1284,31 +1307,37 @@ function renderAdminTables() {
 
     const vegStatus = document.getElementById('currentVegStatus');
     const vegBtn = document.getElementById('toggleVegBtn');
+
     if (vegStatus) vegStatus.innerText = menuData.vegActive ? 'เปิดปกติ (มีผัก)' : 'ผักหมดชั่วคราว';
     if (vegBtn) vegBtn.innerText = menuData.vegActive ? 'ตั้งเป็นผักหมด' : 'ตั้งเป็นมีผัก';
 }
 
 function addNoodle() {
-    const catEl = document.getElementById('newNoodleCategory');
-    const nameEl = document.getElementById('newNoodleName');
-    const priceEl = document.getElementById('newNoodlePrice');
-    const stockEl = document.getElementById('newNoodleStock');
+    const catInput = document.getElementById('newNoodleCategory');
+    const nameInput = document.getElementById('newNoodleName');
+    const priceInput = document.getElementById('newNoodlePrice');
+    const stockInput = document.getElementById('newNoodleStock');
 
-    const cat = catEl ? catEl.value : 'Buldak';
-    const name = nameEl ? nameEl.value.trim() : '';
-    const price = priceEl ? parseFloat(priceEl.value) : NaN;
-    const stock = stockEl ? (parseInt(stockEl.value) || 0) : 0;
+    const cat = catInput ? catInput.value : 'Buldak';
+    const name = nameInput ? nameInput.value.trim() : '';
+    const price = priceInput ? parseFloat(priceInput.value) : NaN;
+    const stock = stockInput ? (parseInt(stockInput.value) || 0) : 0;
 
     if (!name || isNaN(price)) { alert('กรุณากรอกชื่อรสชาติและราคาให้ถูกต้อง'); return; }
+    if (!Array.isArray(menuData.noodles)) menuData.noodles = Object.values(menuData.noodles || {});
+    
     menuData.noodles.push({ id: Date.now(), category: cat, name: name, price: price, stock: stock });
-    if (nameEl) nameEl.value = '';
-    if (priceEl) priceEl.value = '';
-    if (stockEl) stockEl.value = '';
+    
+    if (nameInput) nameInput.value = '';
+    if (priceInput) priceInput.value = '';
+    if (stockInput) stockInput.value = '';
+    
     saveData();
 }
 
 function updateNoodleStock(id, change) {
-    const noodle = menuData.noodles.find(n => n.id == id);
+    if (!Array.isArray(menuData.noodles)) menuData.noodles = Object.values(menuData.noodles || {});
+    const noodle = menuData.noodles.find(n => String(n.id) === String(id));
     if (noodle) { 
         noodle.stock = Math.max(0, noodle.stock + change); 
         saveData(); 
@@ -1317,28 +1346,38 @@ function updateNoodleStock(id, change) {
 
 function deleteNoodle(id) {
     if (confirm('ยืนยันลบรายการนี้?')) { 
-        menuData.noodles = menuData.noodles.filter(n => n.id != id); 
+        if (!Array.isArray(menuData.noodles)) menuData.noodles = Object.values(menuData.noodles || {});
+        menuData.noodles = menuData.noodles.filter(n => String(n.id) !== String(id)); 
         saveData(); 
     }
 }
 
 function addTopping() {
-    const nameEl = document.getElementById('newToppingName');
-    const name = nameEl ? nameEl.value.trim() : '';
+    const nameInput = document.getElementById('newToppingName');
+    const name = nameInput ? nameInput.value.trim() : '';
+    
     if (!name) { alert('กรุณากรอกชื่อวัตถุดิบ/เครื่อง'); return; }
+    if (!Array.isArray(menuData.toppings)) menuData.toppings = Object.values(menuData.toppings || {});
+
     menuData.toppings.push({ id: Date.now(), name: name, available: true });
-    if (nameEl) nameEl.value = '';
+    
+    if (nameInput) nameInput.value = '';
     saveData();
 }
 
 function toggleToppingStatus(id) {
-    const topping = menuData.toppings.find(t => t.id == id);
-    if (topping) { topping.available = !topping.available; saveData(); }
+    if (!Array.isArray(menuData.toppings)) menuData.toppings = Object.values(menuData.toppings || {});
+    const topping = menuData.toppings.find(t => String(t.id) === String(id));
+    if (topping) { 
+        topping.available = !topping.available; 
+        saveData(); 
+    }
 }
 
 function deleteTopping(id) {
     if (confirm('ยืนยันลบรายการวัตถุดิบนี้?')) { 
-        menuData.toppings = menuData.toppings.filter(t => t.id != id); 
+        if (!Array.isArray(menuData.toppings)) menuData.toppings = Object.values(menuData.toppings || {});
+        menuData.toppings = menuData.toppings.filter(t => String(t.id) !== String(id)); 
         saveData(); 
     }
 }
