@@ -114,9 +114,9 @@
                     <input type="text" id="custPhone" placeholder="เช่น 0812345678">
                 </div>
 
-                 <div class="form-group">
-                    <label class="form-label">facebook *</label>
-                    <input type="text" id="custFacebook" placeholder="สำหรับติดต่อเมื่อพ่อค้าจัดส่งอาหารเรียบร้อยแล้ว">
+                <div class="form-group">
+                    <label class="form-label">ชื่อ Facebook / ลิงก์ Facebook * (สำคัญมาก)</label>
+                    <input type="text" id="custFacebook" placeholder="เช่น Somchai Jaidee (สำหรับส่งรูปยืนยันการจัดส่งอาหาร)">
                 </div>
 
                 <div class="form-group">
@@ -145,7 +145,7 @@
             </button>
         </div>
 
-        <!-- 🟢 หน้า 2: หน้ารอออเดอร์แยกต่างหาก (Waiting View) -->
+        <!-- 🟢 หน้า 2: หน้ารอออเดอร์ (Waiting View) -->
         <div id="waitingView" style="display: none;">
             <div class="card" style="text-align: center; padding: 30px 20px; border-top: 6px solid var(--primary);">
                 <div id="waitingStatusIcon" style="font-size: 56px; margin-bottom: 10px;">⏳</div>
@@ -153,7 +153,7 @@
                 <p id="waitingStatusDesc" style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">ระบบได้ส่งรายการไปยังร้านค้าแล้ว กรุณารอสักครู่...</p>
 
                 <div class="receipt-box" id="waitingOrderReceipt" style="text-align: left; background: #fafbfc; border: 1.5px dashed var(--border-color); padding: 16px; border-radius: 12px; margin-bottom: 20px;">
-                    <!-- รายละเอียดออเดอร์จะแสดงที่นี่ -->
+                    <!-- รายละเอียดออเดอร์จะแสดงที่นี่แบบ Real-time -->
                 </div>
 
                 <div style="margin-bottom: 12px;">
@@ -304,7 +304,7 @@
 
                 <div id="promptpay-section" class="qr-container">
                     <div style="font-size: 13px; color: var(--text-muted); font-weight: 500;">สแกน QR Code เพื่อชำระเงิน</div>
-                    <img src="qrbaramee.jpg" alt="QR Code ชำระเงิน" class="qr-image" style="width: 200px; height: auto; margin: 10px auto; display: block;" onerror="this.src='https://via.placeholder.com/200x200.png?text=QR+PromptPay'">
+                    <img src="qrbaramee.jpg" alt="QR Code ชำระเงิน" class="qr-image" style="width: 200px; height: auto; margin: 10px auto; display: block;" onerror="if(this.src.indexOf('qrbaramee_2.jpg')===-1){this.src='qrbaramee_2.jpg';}else{this.src='https://via.placeholder.com/200x200.png?text=QR+PromptPay';}">
                     <div style="font-size: 14px; color: var(--text-main); margin-top: 8px; font-weight: 600;">ชื่อบัญชี: นาย บารมี ใจชอบ</div>
                     <div style="font-size: 12px; color: var(--primary); margin-top: 2px; font-weight: 500;">มาม่าเกาหลีห่อไข่ by เชฟ...</div>
                     
@@ -332,5 +332,39 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js" defer></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js" defer></script>
     <script src="script.js" defer></script>
+    <!-- โค้ดอื่นๆ ในหน้า index.html -->
+
+    <script>
+        // บล็อคการคลิกขวา (Disable Right Click)
+        document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+        });
+
+        // บล็อคปุ่มคีย์บอร์ด (Disable F12 & DevTools Shortcuts)
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'F12' || e.keyCode === 123) {
+                e.preventDefault();
+                return false;
+            }
+            if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'I' || e.key === 'i')) {
+                e.preventDefault();
+                return false;
+            }
+            if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'J' || e.key === 'j')) {
+                e.preventDefault();
+                return false;
+            }
+            if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'C' || e.key === 'c')) {
+                e.preventDefault();
+                return false;
+            }
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'U' || e.key === 'u')) {
+                e.preventDefault();
+                return false;
+            }
+        });
+    </script>
+</body>
+</html>
 </body>
 </html>
